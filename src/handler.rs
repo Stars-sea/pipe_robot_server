@@ -31,7 +31,7 @@ impl Context {
     }
 }
 
-async fn verify_connection(stream: &TcpStream) -> Result<Role> {
+async fn verify_connection(stream: &mut TcpStream) -> Result<Role> {
     let msg = stream.read_string().await?;
 
     if let Some(name) = msg.strip_prefix("controller:") {
@@ -74,7 +74,7 @@ async fn handle_controller(stream: &mut TcpStream, ctx: Context) -> Result<()> {
 
             let packet = role.new_packet(format!("Error reading packet: {:?}", e));
             stream.write_packet(&packet).await.ok();
-            continue;
+            return Err(anyhow!("Error reading packet: {:?}", e));
         }
 
         let packet = packet.unwrap();
@@ -115,7 +115,7 @@ pub async fn handle_connection(
     roles: Arc<RoleContainer>,
     pipe: MessagePipe,
 ) {
-    let verify_result = verify_connection(&stream).await;
+    let verify_result = verify_connection(&mut stream).await;
     if let Err(e) = verify_result {
         error!("Failed to verify connection {}: {:?}", addr, e);
         stream.shutdown().await.ok();

@@ -1,6 +1,9 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use tokio::{io::AsyncWriteExt, net::TcpStream};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Packet {
@@ -23,30 +26,33 @@ impl Packet {
 }
 
 pub trait TcpStreamExt {
-    async fn read_string(&self) -> Result<String>;
+    async fn read_string(&mut self) -> Result<String>;
 
-    async fn read_packet(&self) -> Result<Packet>;
+    async fn read_packet(&mut self) -> Result<Packet>;
 
     async fn write_packet(&mut self, packet: &Packet) -> Result<()>;
 }
 
 impl TcpStreamExt for TcpStream {
-    async fn read_string(&self) -> Result<String> {
-        self.readable().await?;
-
+    async fn read_string(&mut self) -> Result<String> {
         let mut msg = vec![0; 1024];
-        let read_size = self.try_read(&mut msg)?;
+        let read_size = self.read(&mut msg).await?;
+        if read_size == 0 {
+            return Err(anyhow!("Connection was closed"));
+        }
+
         msg.truncate(read_size);
         return Ok(String::from_utf8(msg)?);
     }
-    
-    async fn read_packet(&self) -> Result<Packet> {
+
+    async fn read_packet(&mut self) -> Result<Packet> {
         let msg = self.read_string().await?;
         Ok(Packet::from_json(&msg)?)
     }
-    
+
     async fn write_packet(&mut self, packet: &Packet) -> Result<()> {
         self.write(packet.to_json().as_bytes()).await?;
+        self.flush().await?;
         Ok(())
     }
 }

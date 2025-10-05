@@ -16,6 +16,9 @@ use role::RoleContainer;
 #[tokio::main]
 async fn main() {
     env_logger::init();
+    // env_logger::Builder::new()
+    //     .filter(None, log::LevelFilter::Debug)
+    //     .init();
 
     let config = TcpServerConfig::get_config("config.json").unwrap();
 
