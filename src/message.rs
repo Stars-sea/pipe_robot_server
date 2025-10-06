@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use tokio::sync::watch::{self, Receiver, Sender};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     from: String,
     to: String,
@@ -21,6 +22,10 @@ impl Message {
 
     pub fn body(&self) -> &String {
         &self.body
+    }
+
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| String::from("{}"))
     }
 
     fn empty() -> Message {
@@ -61,7 +66,7 @@ impl MessagePipe {
         loop {
             self.rx.changed().await?;
             let message = (*self.rx.borrow()).clone();
-            if message.to != *name {
+            if message.to != "all" && message.to != *name {
                 continue;
             }
             return Ok(message);

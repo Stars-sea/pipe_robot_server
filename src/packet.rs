@@ -1,19 +1,23 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Packet {
     pub receivers: Vec<String>,
     pub body: String,
+    pub id: String,
 }
 
 impl Packet {
     pub fn new(receivers: Vec<String>, body: String) -> Packet {
-        Packet { receivers, body }
+        Packet { receivers, body, id: Uuid::new_v4().to_string() }
+    }
+
+    pub fn new_with_id(receivers: Vec<String>, body: String, id: String) -> Packet {
+        Packet { receivers, body, id }
     }
 
     pub fn to_json(&self) -> String {
@@ -52,6 +56,7 @@ impl TcpStreamExt for TcpStream {
 
     async fn write_packet(&mut self, packet: &Packet) -> Result<()> {
         self.write(packet.to_json().as_bytes()).await?;
+        self.write(b"\n").await?;
         self.flush().await?;
         Ok(())
     }

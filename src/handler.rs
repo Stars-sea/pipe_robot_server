@@ -44,11 +44,29 @@ async fn verify_connection(stream: &mut TcpStream) -> Result<Role> {
     Ok(Role::Unknown)
 }
 
-async fn handle_controller(stream: &mut TcpStream, ctx: Context) -> Result<()> {
+async fn command_handler(command: String, others: Arc<RoleContainer>) -> Result<Option<String>> {
+    match command.as_str() {
+        "list" => {
+            let list: Vec<String> = others.list().await.iter().map(|r| r.to_string()).collect();
+            Ok(Some(format!("[{}]", list.join(","))))
+        }
+        "list_controllers" => {
+            let list: Vec<String> = others.list_controllers().await;
+            Ok(Some(format!("[{}]", list.join(","))))
+        }
+        "list_receivers" => {
+            let list: Vec<String> = others.list_receivers().await;
+            Ok(Some(format!("[{}]", list.join(","))))
+        }
+        _ => Ok(None),
+    }
+}
+
+async fn controller_handler(stream: &mut TcpStream, ctx: Context) -> Result<()> {
     let Context {
         role,
         addr,
-        others: _,
+        others,
         pipe,
     } = ctx;
 
@@ -78,6 +96,24 @@ async fn handle_controller(stream: &mut TcpStream, ctx: Context) -> Result<()> {
         }
 
         let packet = packet.unwrap();
+        if packet.receivers.len() == 1 && packet.receivers.contains(&"server".to_string()) {
+            let command = packet.body;
+            info!(
+                "Received command from {}({}): {:?}",
+                role_name, addr, command
+            );
+            if let Some(resp) = command_handler(command.clone(), others.clone()).await? {
+                info!("Respond to {}({}): {:?}", role_name, addr, &resp);
+
+                let resp_message = Message::new(&"server".to_string(), &role_name, &resp);
+                let resp_packet = role.new_packet_with_id(resp_message.to_json(), packet.id);
+                stream.write_packet(&resp_packet).await?;
+            } else {
+                info!("Unknown command, ignored");
+            }
+            continue;
+        }
+
         packet.receivers.iter().for_each(|receiver| {
             let msg = Message::new(&role_name, &receiver, &packet.body);
             pipe.send(msg).ok();
@@ -85,7 +121,7 @@ async fn handle_controller(stream: &mut TcpStream, ctx: Context) -> Result<()> {
     }
 }
 
-async fn handle_receiver(stream: &mut TcpStream, ctx: Context) -> Result<()> {
+async fn receiver_handler(stream: &mut TcpStream, ctx: Context) -> Result<()> {
     let Context {
         role,
         addr,
@@ -102,10 +138,15 @@ async fn handle_receiver(stream: &mut TcpStream, ctx: Context) -> Result<()> {
         }
 
         let received_msg = received_msg.unwrap();
-        debug!("Received message: {}", received_msg.to_string());
+        debug!("Received message from pipe: {}", received_msg.to_string());
 
         stream.write(received_msg.body().as_bytes()).await?;
-        debug!("Send message to {}({})", role_name, addr);
+        info!(
+            "Send message to {}({}): {:?}",
+            role_name,
+            addr,
+            received_msg.body()
+        );
     }
 }
 
@@ -130,11 +171,11 @@ pub async fn handle_connection(
     let result = match &role {
         Role::Controller(name) => {
             info!("Connection {} identified as Controller: {}", addr, name);
-            handle_controller(&mut stream, ctx).await
+            controller_handler(&mut stream, ctx).await
         }
         Role::Receiver(name) => {
             info!("Connection {} identified as Receiver: {}", addr, name);
-            handle_receiver(&mut stream, ctx).await
+            receiver_handler(&mut stream, ctx).await
         }
         Role::Unknown => Err(anyhow!("Connection {} has unknown role", addr)),
     };

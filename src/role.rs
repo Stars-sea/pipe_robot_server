@@ -24,13 +24,29 @@ impl Role {
     }
 }
 
+impl ToString for Role {
+    fn to_string(&self) -> String {
+        match &self {
+            Role::Controller(name) => format!("controller:{}", name),
+            Role::Receiver(name) => format!("receiver:{}", name),
+            Role::Unknown => "unknown".to_string()
+        }
+    }
+}
+
 pub trait RoleExt {
     fn new_packet(&self, body: String) -> Packet;
+
+    fn new_packet_with_id(&self, body: String, id: String) -> Packet;
 }
 
 impl RoleExt for Role {
     fn new_packet(&self, body: String) -> Packet {
         Packet::new(vec![self.name_or_unknown()], body)
+    }
+
+    fn new_packet_with_id(&self, body: String, id: String) -> Packet {
+        Packet::new_with_id(vec![self.name_or_unknown()], body, id)
     }
 }
 
