@@ -36,6 +36,10 @@ impl Context {
             pipe: pipe,
         }
     }
+
+    fn role_info(&self) -> String {
+        format!("{}({})", self.role.name_or_unknown(), self.addr)
+    }
 }
 
 async fn verify_connection(stream: &mut TcpStream) -> Result<Role> {

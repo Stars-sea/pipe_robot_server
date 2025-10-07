@@ -13,11 +13,19 @@ pub struct Packet {
 
 impl Packet {
     pub fn new(receivers: Vec<String>, body: String) -> Packet {
-        Packet { receivers, body, id: Uuid::new_v4().to_string() }
+        Packet {
+            receivers,
+            body,
+            id: Uuid::new_v4().to_string(),
+        }
     }
 
     pub fn new_with_id(receivers: Vec<String>, body: String, id: String) -> Packet {
-        Packet { receivers, body, id }
+        Packet {
+            receivers,
+            body,
+            id,
+        }
     }
 
     pub fn to_json(&self) -> String {
@@ -26,6 +34,12 @@ impl Packet {
 
     pub fn from_json(json_str: &str) -> Result<Packet> {
         Ok(serde_json::from_str(json_str)?)
+    }
+}
+
+impl ToString for Packet {
+    fn to_string(&self) -> String {
+        format!("[{}]: {}", self.receivers.join(","), self.body)
     }
 }
 

@@ -15,10 +15,7 @@ use role::RoleContainer;
 
 #[tokio::main]
 async fn main() {
-    // env_logger::init();
-    env_logger::Builder::new()
-        .filter(None, log::LevelFilter::Debug)
-        .init();
+    env_logger::init();
 
     let config = TcpServerConfig::get_config("config.json").unwrap();
 
@@ -43,7 +40,7 @@ async fn main() {
         let (stream, addr) = accpet_result.unwrap();
         info!("New connection from {}", addr);
 
-        let roles_clone = roles.clone();
+        let roles_clone = Arc::clone(&roles);
         let pipe_clone = pipe.clone();
         tokio::spawn(async move {
             handle_connection(stream, addr, roles_clone, pipe_clone).await;

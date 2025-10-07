@@ -12,12 +12,8 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn new(from: &String, to: &String, body: &String) -> Message {
-        Message {
-            from: from.clone(),
-            to: to.clone(),
-            body: body.clone(),
-        }
+    pub fn new(from: String, to: String, body: String) -> Message {
+        Message { from, to, body }
     }
 
     pub fn body(&self) -> &String {
@@ -29,11 +25,7 @@ impl Message {
     }
 
     fn empty() -> Message {
-        Message::new(
-            &"none".to_string(),
-            &"none".to_string(),
-            &"none".to_string(),
-        )
+        Message::new("none".to_string(), "none".to_string(), "none".to_string())
     }
 }
 

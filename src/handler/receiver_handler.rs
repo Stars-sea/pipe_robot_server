@@ -10,15 +10,7 @@ use tokio::time::{interval, timeout};
 
 use crate::handler::Context;
 
-async fn hearbeat_handler(stream: Arc<Mutex<&mut TcpStream>>, ctx: &Context) -> Result<()> {
-    let Context {
-        role,
-        addr,
-        others: _,
-        pipe: _,
-    } = ctx;
-
-    let role_name = role.name()?;
+async fn hearbeat_handler(stream: Arc<Mutex<&mut TcpStream>>, role_info: String) -> Result<()> {
     let mut heartbeat_interval = interval(Duration::from_secs(5));
 
     loop {
@@ -28,24 +20,21 @@ async fn hearbeat_handler(stream: Arc<Mutex<&mut TcpStream>>, ctx: &Context) -> 
 
         {
             if let Err(e) = stream.lock().await.write_all(b"HEARTBEAT").await {
-                warn!(
-                    "Failed to send heartbeat to {}({}): {:?}",
-                    role_name, addr, e
-                );
+                warn!("Failed to send heartbeat to {}: {:?}", role_info, e);
                 return Err(e.into());
             }
-            debug!("Sent heartbeat to {}({})", role_name, addr);
+            debug!("Sent heartbeat to {}", role_info);
         }
 
         match timeout(Duration::from_secs(1), stream.lock().await.read(&mut buf)).await? {
             Ok(0) => {
-                info!("Connection closed by {}({})", role_name, addr);
+                info!("Connection closed by {}", role_info);
                 return Ok(());
             }
             Ok(n) => {
                 let received_data = String::from_utf8_lossy(&buf[..n]).to_string();
                 if received_data == "HEARTBEAT_ACK" {
-                    debug!("Received hearbeat from {}({})", role_name, addr);
+                    debug!("Received hearbeat from {}", role_info);
                 } else {
                     return Err(anyhow!("Received invalid heartbeat ack"));
                 }
@@ -95,7 +84,7 @@ pub(super) async fn receiver_handler(stream: &mut TcpStream, ctx: Context) -> Re
     let stream_cloned = Arc::clone(&stream);
 
     tokio::select! {
-        heartbeat_result = hearbeat_handler(stream, &ctx) => {
+        heartbeat_result = hearbeat_handler(stream, ctx.role_info()) => {
             return heartbeat_result;
         }
 
