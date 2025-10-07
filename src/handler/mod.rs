@@ -5,12 +5,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use tokio::{io::AsyncWriteExt, net::TcpStream};
 
 use crate::message::MessagePipe;
 use crate::packet::TcpStreamExt;
-use crate::role::{Role, RoleContainer, RoleExt};
+use crate::role::{Role, RoleContainer};
 use controller_handler::controller_handler;
 use receiver_handler::receiver_handler;
 
@@ -83,16 +83,6 @@ pub async fn handle_connection(
 
     if let Err(e) = result {
         warn!("Connection closed: {:?}", e);
-
-        let err_packet = role.new_packet(format!("Connection closed, error: {:?}", e));
-        if let Err(e) = stream.write_packet(&err_packet).await {
-            debug!(
-                "Failed to send error packet to {}({}): {:?}",
-                role.name_or_unknown(),
-                addr,
-                e
-            );
-        }
     }
 
     stream.shutdown().await.ok();
