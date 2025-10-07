@@ -63,6 +63,7 @@ impl MessagePipe {
     }
 
     pub async fn get(&mut self, name: &String) -> Result<Message> {
+        self.rx.mark_unchanged();
         loop {
             self.rx.changed().await?;
             let message = (*self.rx.borrow()).clone();

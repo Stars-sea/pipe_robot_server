@@ -15,16 +15,20 @@ use role::RoleContainer;
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
-    // env_logger::Builder::new()
-    //     .filter(None, log::LevelFilter::Debug)
-    //     .init();
+    // env_logger::init();
+    env_logger::Builder::new()
+        .filter(None, log::LevelFilter::Debug)
+        .init();
 
     let config = TcpServerConfig::get_config("config.json").unwrap();
 
     info!("Starting server...");
     let listener = TcpListener::bind(&config.addr).await.unwrap();
-    info!("Server listening on {}", config.addr);
+    if config.ttl != 0 {
+        listener.set_ttl(config.ttl).unwrap();
+    }
+
+    info!("Server listening on {}, ttl: {}", config.addr, config.ttl);
 
     let roles = Arc::new(RoleContainer::new());
     let pipe = MessagePipe::new();

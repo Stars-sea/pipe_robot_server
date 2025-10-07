@@ -6,6 +6,7 @@ use std::{fs::File, io::BufReader};
 pub struct TcpServerConfig {
     pub addr: String,
     pub whitelist: Vec<String>,
+    pub ttl: u32
 }
 
 impl TcpServerConfig {
